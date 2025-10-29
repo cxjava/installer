@@ -4,10 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"regexp"
 )
-
-var searchGithubRe = regexp.MustCompile(`https:\/\/github\.com\/(\w+)\/(\w+)`)
 
 func imFeelingLuck(phrase string) (user, project string, err error) {
 	phrase += " site:github.com"

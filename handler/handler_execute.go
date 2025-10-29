@@ -111,11 +111,16 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 	if l := len(sumIndex); l > 0 {
 		log.Printf("fetched %d asset shasums", l)
 	}
-	index := map[string]Asset{}
+
+	var (
+		candidates      = map[string]Asset{}
+		index           = map[string]Asset{}
+		foundLinuxAMD64 = false
+	)
 	for _, ga := range ghas {
 		url := ga.BrowserDownloadURL
-		//only binary containers are supported
-		//TODO deb,rpm etc
+		// only binary containers are supported
+		// TODO deb,rpm etc
 		fext := getFileExt(url)
 		if fext == "" && ga.Size > 1024*1024 {
 			fext = ".bin" // +1MB binary
@@ -127,21 +132,38 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 			log.Printf("fetched asset has unsupported file type: %s (ext '%s')", ga.Name, fext)
 			continue
 		}
-		//match
+		// match
 		os := getOS(ga.Name)
 		arch := getArch(ga.Name)
-		//windows not supported yet
+		// windows not supported yet
 		if os == "windows" {
 			log.Printf("fetched asset is for windows: %s", ga.Name)
-			//TODO: powershell
+			// TODO: powershell
 			// EG: iwr https://deno.land/x/install/install.ps1 -useb | iex
 			continue
 		}
-		//unknown os, cant use
-		if os == "" {
-			log.Printf("fetched asset has unknown os: %s", ga.Name)
-			continue
+
+		// stop guessing for linux/amd64 assets when the exact match is found
+		if os == "linux" && arch == "amd64" {
+			foundLinuxAMD64 = true
 		}
+		assumedLinuxAsset := false
+		// unknown arch/os, the asset will be regarded as linux/amd64 if no other assets match
+		if os == "" {
+			assumedLinuxAsset = true
+			if arch == "" || arch == "amd64" {
+				if foundLinuxAMD64 {
+					continue
+				}
+			}
+		}
+		if arch == "" {
+			arch = "amd64"
+			if os == "linux" {
+				assumedLinuxAsset = true
+			}
+		}
+
 		// user selecting a particular asset?
 		if q.Select != "" && !strings.Contains(ga.Name, q.Select) {
 			log.Printf("select excludes asset: %s", ga.Name)
@@ -155,10 +177,26 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 			Type:   fext,
 			SHA256: sumIndex[ga.Name],
 		}
-		//there can only be 1 file for each OS/Arch
+
 		key := asset.Key()
-		other, exists := index[key]
-		if exists {
+		// "linux/", "/amd64" will all be assumed as "linux/amd64"
+		if assumedLinuxAsset {
+			// "linux/" always win.
+			if key == "linux/" {
+				delete(candidates, "/amd64")
+				foundLinuxAMD64 = true
+
+				// If key "linux/" exist,
+				// assets like "unknown-os-i386" would be ignored (stop guessing OS)
+			} else if _, exists := candidates["linux/"]; exists {
+				continue
+			}
+			candidates[key] = asset
+			continue
+		}
+
+		// there can only be 1 file for each OS/Arch
+		if other, exists := index[key]; exists {
 			gnu := func(s string) bool { return strings.Contains(s, "gnu") }
 			musl := func(s string) bool { return strings.Contains(s, "musl") }
 			g2m := gnu(other.Name) && !musl(other.Name) && !gnu(asset.Name) && musl(asset.Name)
@@ -168,6 +206,18 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 			}
 		}
 		index[key] = asset
+	}
+
+	for _, cAsset := range candidates {
+		// "/loong64" will be assumed to be "linux/loong64"
+		if cAsset.OS == "" {
+			cAsset.OS = "linux"
+		}
+		indexKey := cAsset.Key()
+		// and will only be selected if the exact match failed
+		if _, exists := index[indexKey]; !exists {
+			index[indexKey] = cAsset
+		}
 	}
 	if len(index) == 0 {
 		return release, nil, errors.New("no downloads found for this release")
@@ -199,10 +249,12 @@ func (as ghAssets) getSumIndex() (map[string]string, error) {
 	}
 	resp, err := httpGet(url)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("sum file request returned status: %s", resp.Status)
+	}
 	// take each line and insert into the index
 	index := map[string]string{}
 	s := bufio.NewScanner(resp.Body)
@@ -248,18 +300,18 @@ type ghRelease struct {
 		ID    int    `json:"id"`
 		Login string `json:"login"`
 	} `json:"author"`
-	Body            string      `json:"body"`
-	CreatedAt       string      `json:"created_at"`
-	Draft           bool        `json:"draft"`
-	HTMLURL         string      `json:"html_url"`
-	ID              int         `json:"id"`
-	Name            interface{} `json:"name"`
-	Prerelease      bool        `json:"prerelease"`
-	PublishedAt     string      `json:"published_at"`
-	TagName         string      `json:"tag_name"`
-	TarballURL      string      `json:"tarball_url"`
-	TargetCommitish string      `json:"target_commitish"`
-	UploadURL       string      `json:"upload_url"`
-	URL             string      `json:"url"`
-	ZipballURL      string      `json:"zipball_url"`
+	Body            string `json:"body"`
+	CreatedAt       string `json:"created_at"`
+	Draft           bool   `json:"draft"`
+	HTMLURL         string `json:"html_url"`
+	ID              int    `json:"id"`
+	Name            any    `json:"name"`
+	Prerelease      bool   `json:"prerelease"`
+	PublishedAt     string `json:"published_at"`
+	TagName         string `json:"tag_name"`
+	TarballURL      string `json:"tarball_url"`
+	TargetCommitish string `json:"target_commitish"`
+	UploadURL       string `json:"upload_url"`
+	URL             string `json:"url"`
+	ZipballURL      string `json:"zipball_url"`
 }
