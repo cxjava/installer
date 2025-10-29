@@ -6,20 +6,30 @@ package main
 //go:generate qtc -dir=handler
 
 import (
-	"log"
-
 	"github.com/jpillora/installer/handler"
-	"github.com/jpillora/opts"
 	"github.com/syumai/workers"
+	"github.com/syumai/workers/cloudflare"
 )
 
-var version = "0.0.0-src"
-
 func main() {
+	// Use DefaultConfig directly in WASM environment
+	// opts.Parse() doesn't work well in WASM
 	c := handler.DefaultConfig
-	opts.New(&c).Repo("github.com/cxjava/installer").Version(version).Parse()
-	log.Printf("default user is '%s'", c.User)
+
+	// Allow environment variable overrides from Workers environment
+	// Note: These need to be set in wrangler.jsonc [vars] section
+	if defaultUser := cloudflare.Getenv("DEFAULT_USER"); defaultUser != "" && defaultUser != "<undefined>" {
+		c.User = defaultUser
+	}
+	if token := cloudflare.Getenv("GITHUB_TOKEN"); token != "" && token != "<undefined>" {
+		c.Token = token
+	}
+	if forceUser := cloudflare.Getenv("FORCE_USER"); forceUser != "" && forceUser != "<undefined>" {
+		c.ForceUser = forceUser
+	}
+	if forceRepo := cloudflare.Getenv("FORCE_REPO"); forceRepo != "" && forceRepo != "<undefined>" {
+		c.ForceRepo = forceRepo
+	}
 	h := &handler.Handler{Config: c}
 	workers.Serve(h)
-	log.Print("exiting")
 }

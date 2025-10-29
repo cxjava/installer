@@ -128,36 +128,66 @@ function install {
 		GET="$GET -H 'Authorization: $AUTH'"
 	fi
 	#find OS #TODO BSDs and other posixs
-	case `)
-//line handler/install.sh.qtpl:25
-	qw422016.N().S("`")
-//line handler/install.sh.qtpl:25
-	qw422016.N().S(`uname -s`)
-//line handler/install.sh.qtpl:25
-	qw422016.N().S("`")
-//line handler/install.sh.qtpl:25
-	qw422016.N().S(` in
-	Darwin) OS="darwin";;
-	Linux) OS="linux";;
+	`)
+//line handler/install.sh.qtpl:61
+	if len(r.OS) > 0 {
+//line handler/install.sh.qtpl:61
+		qw422016.N().S(`
+	OS="`)
+//line handler/install.sh.qtpl:62
+		qw422016.E().S(r.OS)
+//line handler/install.sh.qtpl:62
+		qw422016.N().S(`"
+	echo "Override OS: $OS"
+	`)
+//line handler/install.sh.qtpl:64
+	} else {
+//line handler/install.sh.qtpl:64
+		qw422016.N().S(`
+	OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+	case "$OS" in
+	darwin) OS="darwin";;
+	linux) OS="linux";;
 	*) fail "unknown os: $(uname -s)";;
 	esac
+	`)
+//line handler/install.sh.qtpl:71
+	}
+//line handler/install.sh.qtpl:71
+	qw422016.N().S(`
 	#find ARCH
+	`)
+//line handler/install.sh.qtpl:73
+	if len(r.Arch) > 0 {
+//line handler/install.sh.qtpl:73
+		qw422016.N().S(`
+	ARCH="`)
+//line handler/install.sh.qtpl:74
+		qw422016.E().S(r.Arch)
+//line handler/install.sh.qtpl:74
+		qw422016.N().S(`"
+	echo "Override architecture: $ARCH"
+	`)
+//line handler/install.sh.qtpl:76
+	} else {
+//line handler/install.sh.qtpl:76
+		qw422016.N().S(`
 	if uname -m | grep -E '(arm|arch)64' > /dev/null; then
 		ARCH="arm64"
 		`)
-//line handler/install.sh.qtpl:69
-	if !r.M1Asset {
-//line handler/install.sh.qtpl:69
-		qw422016.N().S(`
+//line handler/install.sh.qtpl:79
+		if !r.M1Asset {
+//line handler/install.sh.qtpl:79
+			qw422016.N().S(`
 		# no m1 assets. if on mac arm64, rosetta allows fallback to amd64
 		if [[ $OS = "darwin" ]]; then
 			ARCH="amd64"
 		fi
 		`)
-//line handler/install.sh.qtpl:74
-	}
-//line handler/install.sh.qtpl:74
-	qw422016.N().S(`
+//line handler/install.sh.qtpl:84
+		}
+//line handler/install.sh.qtpl:84
+		qw422016.N().S(`
 	elif uname -m | grep 64 > /dev/null; then
 		ARCH="amd64"
 	elif uname -m | grep arm > /dev/null; then
@@ -167,53 +197,58 @@ function install {
 	else
 		fail "unknown arch: $(uname -m)"
 	fi
+	`)
+//line handler/install.sh.qtpl:94
+	}
+//line handler/install.sh.qtpl:94
+	qw422016.N().S(`
 	#choose from asset list
 	URL=""
 	FTYPE=""
 	case "${OS}_${ARCH}" in`)
-//line handler/install.sh.qtpl:87
+//line handler/install.sh.qtpl:98
 	for _, n := range r.Assets {
-//line handler/install.sh.qtpl:87
+//line handler/install.sh.qtpl:98
 		qw422016.N().S(`
 	"`)
-//line handler/install.sh.qtpl:88
+//line handler/install.sh.qtpl:99
 		qw422016.E().S(n.OS)
-//line handler/install.sh.qtpl:88
+//line handler/install.sh.qtpl:99
 		qw422016.N().S(`_`)
-//line handler/install.sh.qtpl:88
+//line handler/install.sh.qtpl:99
 		qw422016.E().S(n.Arch)
-//line handler/install.sh.qtpl:88
+//line handler/install.sh.qtpl:99
 		qw422016.N().S(`")
 		URL="`)
-//line handler/install.sh.qtpl:89
+//line handler/install.sh.qtpl:100
 		qw422016.E().S(n.URL)
-//line handler/install.sh.qtpl:89
+//line handler/install.sh.qtpl:100
 		qw422016.N().S(`"
 		FTYPE="`)
-//line handler/install.sh.qtpl:90
+//line handler/install.sh.qtpl:101
 		qw422016.E().S(n.Type)
-//line handler/install.sh.qtpl:90
+//line handler/install.sh.qtpl:101
 		qw422016.N().S(`"
 		;;`)
-//line handler/install.sh.qtpl:91
+//line handler/install.sh.qtpl:102
 	}
-//line handler/install.sh.qtpl:91
+//line handler/install.sh.qtpl:102
 	qw422016.N().S(`
 	*) fail "No asset for platform ${OS}-${ARCH}";;
 	esac
 	#got URL! download it...
 	echo -n "`)
-//line handler/install.sh.qtpl:95
+//line handler/install.sh.qtpl:106
 	if r.MoveToPath {
-//line handler/install.sh.qtpl:95
+//line handler/install.sh.qtpl:106
 		qw422016.N().S(`Installing`)
-//line handler/install.sh.qtpl:95
+//line handler/install.sh.qtpl:106
 	} else {
-//line handler/install.sh.qtpl:95
+//line handler/install.sh.qtpl:106
 		qw422016.N().S(`Downloading`)
-//line handler/install.sh.qtpl:95
+//line handler/install.sh.qtpl:106
 	}
-//line handler/install.sh.qtpl:95
+//line handler/install.sh.qtpl:106
 	qw422016.N().S(`"
 	echo -n " $USER/${PROG_LIST[*]}"
 	if [ ! -z "$RELEASE" ]; then
@@ -224,9 +259,9 @@ function install {
 	fi
 	echo -n " (${OS}/${ARCH})"
 	`)
-//line handler/install.sh.qtpl:104
+//line handler/install.sh.qtpl:115
 	if r.Search {
-//line handler/install.sh.qtpl:104
+//line handler/install.sh.qtpl:115
 		qw422016.N().S(`
 	# web search, give time to cancel
 	echo -n " in 5 seconds"
@@ -235,15 +270,15 @@ function install {
 		echo -n "."
 	done
 	`)
-//line handler/install.sh.qtpl:111
+//line handler/install.sh.qtpl:122
 	} else {
-//line handler/install.sh.qtpl:111
+//line handler/install.sh.qtpl:122
 		qw422016.N().S(`
 	echo "....."
 	`)
-//line handler/install.sh.qtpl:113
+//line handler/install.sh.qtpl:124
 	}
-//line handler/install.sh.qtpl:113
+//line handler/install.sh.qtpl:124
 	qw422016.N().S(`
 	#enter tempdir
 	mkdir -p $TMP_DIR
@@ -299,31 +334,31 @@ function install {
 }
 install
 `)
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 }
 
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 func WriteShell(qq422016 qtio422016.Writer, r Result) {
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	StreamShell(qw422016, r)
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	qt422016.ReleaseWriter(qw422016)
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 }
 
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 func Shell(r Result) string {
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	qb422016 := qt422016.AcquireByteBuffer()
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	WriteShell(qb422016, r)
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	qs422016 := string(qb422016.B)
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	qt422016.ReleaseByteBuffer(qb422016)
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 	return qs422016
-//line handler/install.sh.qtpl:167
+//line handler/install.sh.qtpl:178
 }

@@ -73,7 +73,6 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 	repo := q.Program
 	release := q.Release
 	//not cached - ask github
-	log.Printf("fetching asset info for %s/%s@%s", user, repo, release)
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases", user, repo)
 	ghas := ghAssets{}
 	if release == "" || release == "latest" {
@@ -216,6 +215,7 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 		indexKey := cAsset.Key()
 		// and will only be selected if the exact match failed
 		if _, exists := index[indexKey]; !exists {
+			log.Printf("[DEBUG] Adding candidate asset: %s -> %s", cAsset.Name, indexKey)
 			index[indexKey] = cAsset
 		}
 	}

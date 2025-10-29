@@ -5,9 +5,12 @@
     "build": {
         "command": "make build"
     },
+    "vars": {
+        "DEFAULT_USER": "cxjava"
+    },
     "observability": {
         "logs": {
-            "enabled": true,
+            "enabled": false,
             "head_sampling_rate": 1,
             "invocation_logs": true,
             "persist": true

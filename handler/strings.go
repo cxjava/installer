@@ -6,52 +6,61 @@ import (
 
 func getOS(s string) string {
 	s = strings.ToLower(s)
+	var result string
 	switch {
 	case osReDarwin.MatchString(s):
-		return "darwin"
+		result = "darwin"
 	case osReDragonfly.MatchString(s):
-		return "dragonfly"
+		result = "dragonfly"
 	case osReWindows.MatchString(s):
-		return "windows"
+		result = "windows"
 	case osReMisc.MatchString(s):
 		// return the first capturing group (contains only the alphanumeric characters)
-		return osReMisc.FindStringSubmatch(s)[1]
+		matches := osReMisc.FindStringSubmatch(s)
+		if len(matches) > 1 {
+			result = matches[1]
+		}
 	default:
-		return ""
+		result = ""
 	}
+	return result
 }
 
 func getArch(s string) string {
 	s = strings.ToLower(s)
+	var result string
 	switch {
 	case archReLoong64.MatchString(s):
-		return "loong64"
+		result = "loong64"
 	case archRePPC64.MatchString(s):
-		return "ppc64"
+		result = "ppc64"
 	case archRePPC64LE.MatchString(s):
-		return "ppc64le"
+		result = "ppc64le"
 	case archReRiscv64.MatchString(s):
-		return "riscv64"
+		result = "riscv64"
 	case archReArm64.MatchString(s):
-		return "arm64"
+		result = "arm64"
 	case archReAmd64.MatchString(s):
-		return "amd64"
+		result = "amd64"
 	case archReArm.MatchString(s):
-		return "arm"
+		result = "arm"
 	case archRe386.MatchString(s):
-		return "386"
+		result = "386"
 	case archReMisc.MatchString(s):
-		return archReMisc.FindStringSubmatch(s)[1]
-
+		matches := archReMisc.FindStringSubmatch(s)
+		if len(matches) > 1 {
+			result = matches[1]
+		}
 	// fuzz match 'x?64(bit)?'
 	case fuzzArchAmd64.MatchString(s):
-		return "amd64"
+		result = "amd64"
 	// fuzz match 'x?32(bit)?'
 	case fuzzArch386.MatchString(s):
-		return "386"
+		result = "386"
 	default:
-		return ""
+		result = ""
 	}
+	return result
 }
 
 func getFileExt(s string) string {
