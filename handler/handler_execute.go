@@ -121,8 +121,12 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 		// only binary containers are supported
 		// TODO deb,rpm etc
 		fext := getFileExt(url)
-		if fext == "" && ga.Size > 1024*1024 {
-			fext = ".bin" // +1MB binary
+		if fext == "" {
+			// Check if this looks like a binary by checking for OS and Arch patterns
+			// This handles assets like "joker_darwin_amd64" without extension
+			if getOS(ga.Name) != "" && getArch(ga.Name) != "" && ga.Size > 1024 {
+				fext = ".bin" // Likely a binary if it has OS/Arch in name and > 1KB
+			}
 		}
 		switch fext {
 		case ".bin", ".zip", ".tar.bz", ".tar.bz2", ".tar.xz", ".txz", ".bz2", ".gz", ".tar.gz", ".tgz":
@@ -175,6 +179,7 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 			URL:    url,
 			Type:   fext,
 			SHA256: sumIndex[ga.Name],
+			Size:   ga.Size,
 		}
 
 		key := asset.Key()
@@ -201,7 +206,28 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 			g2m := gnu(other.Name) && !musl(other.Name) && !gnu(asset.Name) && musl(asset.Name)
 			// prefer musl over glib for portability, override with select=gnu
 			if !g2m {
-				continue
+				// If both are gnu or both are not gnu/musl, prefer the larger file (usually static build)
+				// This handles cases like joker_linux_amd64 (497KB static) vs joker_linux_amd64_gnu (39KB dynamic)
+				if (gnu(other.Name) == gnu(asset.Name)) && (musl(other.Name) == musl(asset.Name)) {
+					if ga.Size > other.Size {
+						log.Printf("preferring larger asset %s (%d bytes) over %s (%d bytes) for %s",
+							ga.Name, ga.Size, other.Name, other.Size, key)
+					} else {
+						log.Printf("skipping smaller asset %s (%d bytes), keeping %s (%d bytes) for %s",
+							ga.Name, ga.Size, other.Name, other.Size, key)
+						continue
+					}
+				} else {
+					// Different gnu/musl status, prefer non-gnu (static) over gnu (dynamic)
+					if !gnu(other.Name) && gnu(asset.Name) {
+						log.Printf("skipping gnu asset %s, preferring static build %s for %s",
+							ga.Name, other.Name, key)
+					} else if gnu(other.Name) && !gnu(asset.Name) {
+						log.Printf("replacing gnu asset %s with static build %s for %s",
+							other.Name, ga.Name, key)
+					}
+					continue
+				}
 			}
 		}
 		index[key] = asset

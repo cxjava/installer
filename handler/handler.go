@@ -180,6 +180,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type Asset struct {
 	Name, OS, Arch, URL, Type, SHA256 string
+	Size                               int
 }
 
 func (a Asset) Key() string {
