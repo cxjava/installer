@@ -312,8 +312,43 @@ function install {
 		fail "unknown file type: $FTYPE"
 	fi
 	for PROG in "${PROG_LIST[@]}"; do
-		BIN_PATH=$(find . -type f | grep -i "$PROG" | head -n 1)
-        [[ -z "$BIN_PATH" ]] && fail "Binary $PROG not found"
+		# Try to find binary intelligently:
+		# 1. First try exact filename match (case-insensitive)
+		# 2. Exclude common non-binary files
+		# 3. Fall back to largest file if exact match fails
+		BIN_PATH=""
+		
+		# Strategy 1: Try exact name match, excluding non-binary extensions
+		BIN_PATH=$(find . -type f -iname "$PROG" \
+			! -iname "*.md" ! -iname "*.txt" ! -iname "*.sig" \
+			! -iname "*.asc" ! -iname "LICENSE*" ! -iname "README*" \
+			! -iname "CHANGELOG*" ! -iname "*.sha*" ! -iname "*.sum" \
+			2>/dev/null | head -n 1)
+		
+		# Strategy 2: If exact match failed, try pattern match excluding non-binaries
+		if [[ -z "$BIN_PATH" ]]; then
+			BIN_PATH=$(find . -type f \
+				! -iname "*.md" ! -iname "*.txt" ! -iname "*.sig" \
+				! -iname "*.asc" ! -iname "LICENSE*" ! -iname "README*" \
+				! -iname "CHANGELOG*" ! -iname "*.sha*" ! -iname "*.sum" \
+				2>/dev/null | grep -i "$PROG" | head -n 1)
+		fi
+		
+		# Strategy 3: If still not found, use largest file (likely the binary)
+		if [[ -z "$BIN_PATH" ]]; then
+			BIN_PATH=$(find . -type f \
+				! -iname "*.md" ! -iname "*.txt" ! -iname "*.sig" \
+				! -iname "*.asc" ! -iname "LICENSE*" ! -iname "README*" \
+				! -iname "CHANGELOG*" ! -iname "*.sha*" ! -iname "*.sum" \
+				2>/dev/null | xargs du 2>/dev/null | sort -n | tail -n 1 | cut -f 2)
+		fi
+		
+		[[ -z "$BIN_PATH" ]] && fail "Binary $PROG not found"
+		
+		# Verify it's likely a binary (size check)
+		if [[ $(du -k "$BIN_PATH" 2>/dev/null | cut -f1) -lt 10 ]]; then
+			fail "Found file $BIN_PATH but it's too small (<10KB) to be a valid binary"
+		fi
 
         chmod +x "$BIN_PATH" || fail "chmod +x failed on $BIN_PATH"
         DEST="$OUT_DIR/$PROG"
@@ -334,31 +369,31 @@ function install {
 }
 install
 `)
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 }
 
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 func WriteShell(qq422016 qtio422016.Writer, r Result) {
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	StreamShell(qw422016, r)
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	qt422016.ReleaseWriter(qw422016)
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 }
 
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 func Shell(r Result) string {
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	qb422016 := qt422016.AcquireByteBuffer()
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	WriteShell(qb422016, r)
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	qs422016 := string(qb422016.B)
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	qt422016.ReleaseByteBuffer(qb422016)
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 	return qs422016
-//line handler/install.sh.qtpl:178
+//line handler/install.sh.qtpl:213
 }
