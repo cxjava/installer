@@ -1,175 +1,236 @@
+# Installer - Quick Installation Tool for GitHub Release Binaries
 
-# `installer`
-
-Quickly install pre-compiled binaries from Github releases.
-
-Installer is an HTTP server which returns shell scripts. The returned script will detect platform OS and architecture, choose from a selection of URLs, download the appropriate file, un(zip|tar|gzip) the file, find the binary (largest file) and optionally move it into your `PATH`. Useful for installing your favourite pre-compiled programs on hosts using only `curl`.
+An intelligent HTTP service for quickly installing pre-compiled binaries from GitHub Releases. It automatically detects your system platform (OS and architecture), selects the appropriate asset, downloads, extracts, and optionally moves it to your system PATH.
 
 [![GoDev](https://img.shields.io/static/v1?label=godoc&message=reference&color=00add8)](https://pkg.go.dev/github.com/jpillora/installer)
 [![CI](https://github.com/jpillora/installer/workflows/CI/badge.svg)](https://github.com/jpillora/installer/actions?workflow=CI)
 
-## Cloudflare Workers
+## Features
 
-### Install
+- 🚀 **One-Command Installation**: Install GitHub Release binaries directly via `curl`
+- 🔍 **Smart Search**: Automatically searches the web for repositories when not found
+- 🎯 **Platform Detection**: Auto-detects OS (Linux, macOS, BSD, etc.) and architecture (amd64, arm64, 386, etc.)
+- 📦 **Multiple Format Support**: Supports `.zip`, `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.gz`, `.bz2` and more
+- 🎭 **Multi-Binary Support**: Install multiple binaries from a single release
+- ☁️ **Cloudflare Workers**: Deploy as Cloudflare Workers for global edge acceleration
+- 🔒 **Private Repository Support**: Access private repos via `GITHUB_TOKEN`
 
-- [Install Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
-- [Install Tiny Go](https://tinygo.org/getting-started/install/)
-- Install quicktemplate QTC
-```sh
-go install github.com/valyala/quicktemplate/qtc@latest
+## Quick Start
+
+### Basic Usage
+
+```bash
+# Install a repository (to current directory)
+curl https://your-domain.workers.dev/user/repo | bash
+
+# Install to /usr/local/bin/ (use the ! suffix)
+curl https://your-domain.workers.dev/user/repo! | bash
+
+# Install a specific version
+curl https://your-domain.workers.dev/user/repo@v1.2.3! | bash
+
+# Use repository name only (will attempt search)
+curl https://your-domain.workers.dev/micro! | bash
 ```
 
-### Deploy
+### Install Multiple Binaries
 
-```sh
-wrangler deploy
+```bash
+# Install both client and server from one release
+curl https://your-domain.workers.dev/xtaci/kcptun!?mp=client,server | bash
 ```
-
-### Call Workers
-
-- Support multiple binaries, support both exact and fuzzy matching for files
-
-```sh
-# mp means multi program
-# mp fuzzy matching: client_linux_amd64, you can just input client
-curl https://your-workers-domain.workers.dev/xtaci/kcptun!?mp=client,server | bash
-mv /usr/local/bin/client /usr/local/bin/kcptun_client
-mv /usr/local/bin/server /usr/local/bin/kcptun_server
-/usr/local/bin/kcptun_client -v
-/usr/local/bin/kcptun_server -v
-# exact matching, only install sslocal and ssserver
-curl https://xxx-yyy.zzz.workers.dev/shadowsocks/shadowsocks-rust!?mp=sslocal,ssserver | bash
-mv /usr/local/bin/sslocal /usr/local/bin/ss_client
-mv /usr/local/bin/ssserver /usr/local/bin/ss_server
-/usr/local/bin/ss_client -V
-/usr/local/bin/ss_server -V
-```
-
 
 ## Usage
 
-```sh
-# install <user>/<repo> from github
-curl https://i.jpillora.com/<user>/<repo>@<release>! | bash
+### URL Format
+
+```
+https://your-domain.workers.dev/<user>/<repo>@<release>!?<parameters>
 ```
 
-```sh
-# search web for github repo <query>
-curl https://i.jpillora.com/<query>! | bash
-```
+### Path Parameters
 
-*Or you can use* `wget -qO- <url> | bash`
+- `user` - GitHub username (optional, uses default if omitted)
+- `repo` - Repository name (required)
+- `release` - Release version (optional, defaults to `latest`)
+- `!` - Install to `/usr/local/bin/` (optional, without it installs to current directory)
 
-**Path API**
+### Query Parameters
 
-* `user` Github user (defaults to @jpillora, customisable if you [host your own](#host-your-own), searches the web to pick most relevant `user` when `repo` not found)
-* `repo` Github repository belonging to `user` (**required**)
-* `release` Github release name (defaults to the **latest** release)
-* `!` When provided, downloads binary directly into `/usr/local/bin/` (defaults to working directory)
-
-**Query Params**
-
-* `?type=` Force the return type to be one of: `script` or `homebrew`
-    * `type` is normally detected via `User-Agent` header
-    * `type=homebrew` is **not** working at the moment – see [Homebrew](#homebrew)
-* `?insecure=1` Force `curl`/`wget` to skip certificate checks
-* `?as=` Force the binary to be named as this parameter value
-* `?os=` Explicit set OS (ignore system OS)
-* `?arch=` Explicit set architecture (ignore system arch)
-
-## Security
-
-:warning: Although I promise [my instance of `installer`](https://i.jpillora.com/) is simply a copy of this repo - you're right to be wary of piping shell scripts from unknown servers, so you can host your own server [here](#host-your-own) or just leave off `| bash` and checkout the script yourself.
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `mp` | Install multiple programs (comma-separated) | `?mp=client,server` |
+| `as` | Rename the binary | `?as=rg` |
+| `os` | Override OS detection | `?os=linux` |
+| `arch` | Override architecture detection | `?arch=arm64` |
+| `type` | Output format (`script`, `json`, `text`) | `?type=json` |
+| `select` | Select specific asset variant | `?select=musl` |
+| `insecure` | Skip SSL verification | `?insecure=1` |
 
 ## Examples
 
-* https://i.jpillora.com/serve
-* https://i.jpillora.com/cloud-torrent
-* https://i.jpillora.com/yudai/gotty@v0.0.12
-* https://i.jpillora.com/mholt/caddy
-* https://i.jpillora.com/caddy
-* https://i.jpillora.com/rclone
-* https://i.jpillora.com/ripgrep?as=rg
+### Install micro Editor
 
-    ```sh
-    $ curl -s i.jpillora.com/mholt/caddy! | bash
-    Downloading mholt/caddy v0.8.2 (https://github.com/mholt/caddy/releases/download/v0.8.2/caddy_darwin_amd64.zip)
-    ######################################################################## 100.0%
-    Downloaded to /usr/local/bin/caddy
-    $ caddy --version
-    Caddy 0.8.2
-    ```
-
-## Private repos
-
-You'll have to set `GITHUB_TOKEN` on both your server (instance of `installer`) and client (before you run `curl https://i.jpillora.com/foobar | bash`)
-
-See https://github.com/jpillora/installer/issues/31 for how this could improved
-
-## Host your own
-
-* Install installer with installer
-
-    ```sh
-    curl -s https://i.jpillora.com/installer | bash
-    ```
-
-* Install from source
-
-    ```sh
-    go get github.com/jpillora/installer
-    ```
-
-* Install on [Fly.io](https://fly.io)
-
-    * Clone this repo
-    * Setup the `fly` CLI tool
-    * Create a new app
-    * Replace `app = "installer"` in `fly.toml` with your app name
-    * Run `fly deploy`
-
-## Force a particular `user/repo`
-
-In some cases, people want an installer server for a single tool
-
-```sh
-export FORCE_USER=zyedidia
-export FORCE_REPO=micro
-./installer
+```bash
+curl https://your-domain.workers.dev/zyedidia/micro! | bash
+micro --version
 ```
 
-Then calls to `curl localhost:3000` will return the install script for `zyedidia/micro`
+### Install Caddy Web Server
 
-### Homebrew
-
-Currently, installing via Homebrew does not work. Homebrew was intended to be supported with:
-
-```
-#does not work
-brew install https://i.jpillora.com/serve
+```bash
+curl https://your-domain.workers.dev/caddyserver/caddy@v2.7.6! | bash
+caddy version
 ```
 
-However, homebrew formulas require an SHA1 hash of each binary and currently, the only way to get is to actually download the file. It **might** be acceptable to download all assets if the resulting `.rb` file was cached for a long time.
+### Install and Rename ripgrep
 
-#### MIT License
+```bash
+curl https://your-domain.workers.dev/BurntSushi/ripgrep!?as=rg | bash
+rg --version
+```
 
-Copyright © 2020 Jaime Pillora &lt;dev@jpillora.com&gt;
+### Install Multiple Binaries (kcptun)
 
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-'Software'), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+```bash
+curl https://your-domain.workers.dev/xtaci/kcptun!?mp=client,server | bash
+mv /usr/local/bin/client /usr/local/bin/kcptun-client
+mv /usr/local/bin/server /usr/local/bin/kcptun-server
+```
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+### Install shadowsocks-rust
 
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```bash
+curl https://your-domain.workers.dev/shadowsocks/shadowsocks-rust!?mp=sslocal,ssserver | bash
+```
+
+### Use in Docker
+
+```dockerfile
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y curl
+RUN curl https://your-domain.workers.dev/zyedidia/micro! | bash
+CMD ["/bin/bash"]
+```
+
+### Debug Installation
+
+```bash
+# View script without executing
+curl https://your-domain.workers.dev/jpillora/serve
+
+# Run with debug output
+DEBUG=1 curl https://your-domain.workers.dev/jpillora/serve! | bash
+
+# Get JSON asset information
+curl "https://your-domain.workers.dev/jpillora/serve?type=json"
+```
+
+## Deployment
+
+### Cloudflare Workers (Recommended)
+
+#### Prerequisites
+
+```bash
+# Install Wrangler CLI
+npm install -g wrangler
+
+# Install TinyGo
+brew install tinygo  # macOS
+
+# Install quicktemplate
+go install github.com/valyala/quicktemplate/qtc@latest
+```
+
+#### Configure
+
+Edit `wrangler.jsonc`:
+
+```jsonc
+{
+    "vars": {
+        "DEFAULT_USER": "your-github-username",
+        "GITHUB_TOKEN": "ghp_xxxxx"  // Optional
+    }
+}
+```
+
+#### Deploy
+
+```bash
+make build
+wrangler deploy
+```
+
+### Fly.io
+
+```bash
+fly auth login
+fly deploy
+```
+
+### Run Locally
+
+```bash
+# Install dependencies
+go mod download
+
+# Run
+go run main.go
+
+# Or with custom config
+PORT=8080 USER=myusername go run main.go
+```
+
+#### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Listen port | `3000` |
+| `USER` / `DEFAULT_USER` | Default GitHub user | `cxjava` |
+| `GITHUB_TOKEN` | GitHub API token (optional) | - |
+| `FORCE_USER` | Lock to specific user (optional) | - |
+| `FORCE_REPO` | Lock to specific repo (optional) | - |
+
+## Supported Platforms
+
+### Operating Systems
+Linux, macOS, FreeBSD, OpenBSD, NetBSD, DragonFly BSD, Android, Solaris
+
+### Architectures
+amd64, arm64, 386, arm, loong64, ppc64, ppc64le, riscv64, mips, mips64, s390x, wasm
+
+### Compression Formats
+`.zip`, `.tar.gz`, `.tgz`, `.tar.bz2`, `.tar.xz`, `.txz`, `.gz`, `.bz2`, `.bin`
+
+## Tips
+
+### GitHub API Rate Limits
+
+GitHub API limits:
+- Unauthenticated: 60 requests/hour
+- Authenticated: 5000 requests/hour
+
+Get a token at https://github.com/settings/tokens and set:
+
+```bash
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+```
+
+### Apple Silicon Compatibility
+
+The script automatically detects ARM64 versions. If unavailable, falls back to amd64 (runs via Rosetta 2).
+
+### Security Warning
+
+⚠️ Piping scripts from the internet to bash carries security risks. Always inspect scripts first or deploy your own instance.
+
+```bash
+# Inspect before executing
+curl https://your-domain.workers.dev/user/repo
+```
+
+## License
+
+MIT License - Copyright © 2020 Jaime Pillora &lt;dev@jpillora.com&gt;
